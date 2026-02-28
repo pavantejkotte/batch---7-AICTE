@@ -1,24 +1,26 @@
-import os
 import whisper
-from pydub import AudioSegment
+import tempfile
+import os
 
 class AudioProcessor:
     def __init__(self, model_size="base"):
         print(f"Loading Whisper model: {model_size}...")
         self.model = whisper.load_model(model_size)
 
-    def process_audio(self, file_path):
-        """Transcribes audio file using Whisper."""
-        print(f"Transcribing {file_path}...")
-        result = self.model.transcribe(file_path)
-        return result["text"]
+    def process_audio(self, uploaded_file):
+        """
+        Transcribes uploaded audio file using Whisper.
+        Works safely on Streamlit Cloud.
+        """
+        # Save uploaded file to a temporary location
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+            temp_audio.write(uploaded_file.read())
+            temp_audio_path = temp_audio.name
 
-    def convert_to_wav(self, input_path):
-        """Converts audio to WAV if it's not already."""
-        if input_path.endswith(".wav"):
-            return input_path
-        
-        output_path = input_path.rsplit(".", 1)[0] + ".wav"
-        audio = AudioSegment.from_file(input_path)
-        audio.export(output_path, format="wav")
-        return output_path
+        print(f"Transcribing {temp_audio_path}...")
+        result = self.model.transcribe(temp_audio_path)
+
+        # Clean up temp file
+        os.remove(temp_audio_path)
+
+        return result["text"]
