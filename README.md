@@ -95,18 +95,23 @@ Display outputs to the user
 1️⃣ Clone the Repository
 git clone https://github.com/<your-username>/batch---7-AICTE.git
 cd batch---7-AICTE
+
 2️⃣ Install Dependencies
 pip install -r requirements.txt
+
 3️⃣ Download NLP Models
 python -m nltk.downloader punkt stopwords
 python -m spacy download en_core_web_sm
+
 4️⃣ Add Environment Variables
 
 Create a .env file:
 
 GEMINI_API_KEY=your_api_key_here
+
 5️⃣ Run the Application
 streamlit run app.py
+
 📂 Project Structure
 lecture_to_study_buddy/
 │
@@ -117,6 +122,7 @@ lecture_to_study_buddy/
 ├── .env
 ├── pages/
 └── .streamlit/
+
 📊 Results
 
 Accurate transcription of lecture audio
@@ -170,3 +176,4 @@ Internship: AICTE – IBM SkillsBuild / Edunet Foundation
 Project Type: AI + NLP + ML
 
 Level: Academic / Internship Project
+
