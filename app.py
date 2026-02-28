@@ -19,11 +19,15 @@ genai.configure(api_key=api_key)
 
 from spacy.cli import download
 
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
+@st.cache_resource
+def load_spacy_model():
+    try:
+        return spacy.load("en_core_web_sm")
+    except OSError:
+        download("en_core_web_sm")
+        return spacy.load("en_core_web_sm")
+
+nlp = load_spacy_model()
 
 # Helper Functions
 def clean_text(text):
@@ -801,6 +805,7 @@ if 'transcript' in st.session_state:
         mime="text/plain"
     )
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
