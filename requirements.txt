@@ -4,7 +4,8 @@ torch
 spacy==3.7.4
 nltk
 scikit-learn
-numpy
+numpy<2.0
 networkx
 google-generativeai
 python-dotenv
+
