@@ -1,11 +1,10 @@
 streamlit
 openai-whisper
 torch
-spacy==3.7.4
-nltk
-scikit-learn
 numpy<2.0
+scikit-learn
 networkx
+nltk
 google-generativeai
 python-dotenv
 
