@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 import tempfile
-from dotenv import load_dotenv
 import re
 import random
 from collections import Counter
@@ -19,7 +18,8 @@ genai.configure(api_key=api_key)
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
-    pass
+    st.error("spaCy model not found. Please install en_core_web_sm.")
+    st.stop()
 
 # Helper Functions
 def clean_text(text):
@@ -253,12 +253,6 @@ def generate_flashcards(text, max_cards=6):
             time.sleep(5)
             
     return []
-
-# Load environment
-load_dotenv(override=True)
-
-# Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Page configuration
 st.set_page_config(
@@ -614,8 +608,6 @@ if uploaded_file:
 
             except Exception as e:
                 st.error(f"Error during transcription: {e}")
-            finally:
-                if os.path.exists(tmp_path): os.remove(tmp_path)
 st.markdown('</div>', unsafe_allow_html=True)
 
 if 'transcript' in st.session_state:
@@ -801,6 +793,7 @@ if 'transcript' in st.session_state:
         mime="text/plain"
     )
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
