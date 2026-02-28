@@ -3,3 +3,8 @@ openai-whisper
 pydub
 python-dotenv
 google-generativeai
+nltk
+spacy
+scikit-learn
+numpy
+
