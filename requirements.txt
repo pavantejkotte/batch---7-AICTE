@@ -7,3 +7,4 @@ scikit-learn
 numpy
 networkx
 google-generativeai
+en-core-web-sm
