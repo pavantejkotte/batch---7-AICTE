@@ -1,10 +1,9 @@
 streamlit
 openai-whisper
-pydub
-python-dotenv
-google-generativeai
-nltk
+ffmpeg-python
 spacy
+nltk
 scikit-learn
 numpy
-
+networkx
+google-generativeai
