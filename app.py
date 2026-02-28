@@ -2,7 +2,6 @@ import streamlit as st
 import re
 import google.generativeai as genai
 from audio_processor import AudioProcessor
-import spacy
 import numpy as np
 import networkx as nx
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -14,159 +13,59 @@ st.set_page_config(
     layout="wide"
 )
 
+if "GEMINI_API_KEY" not in st.secrets:
+    st.error("❌ Gemini API key not found. Please configure it in Streamlit Secrets.")
+    st.stop()
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
-
-from spacy.cli import download
-
-@st.cache_resource
-def load_spacy_model():
-    try:
-        return spacy.load("en_core_web_sm")
-    except OSError:
-        download("en_core_web_sm")
-        return spacy.load("en_core_web_sm")
-
-nlp = load_spacy_model()
 
 # Helper Functions
 def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-def generate_summary(notes, top_n=3):
-    if not notes:
-        return "Summary could not be generated due to insufficient conceptual content."
-
-    # Strip the bullet points and whitespace
-    sentences = [n.replace("• ", "").strip() for n in notes]
-
-    # If the notes are already short enough, just join them into a paragraph
-    if len(sentences) <= top_n:
-        return " ".join(sentences)
-
-    try:
-        vectorizer = TfidfVectorizer(stop_words="english")
-        X = vectorizer.fit_transform(sentences)
-        similarity = (X * X.T).toarray()
-
-        graph = nx.from_numpy_array(similarity)
-        scores = nx.pagerank(graph)
-
-        ranked = sorted(
-            ((scores[i], s) for i, s in enumerate(sentences)),
-            reverse=True
-        )
-
-        return " ".join([s for _, s in ranked[:top_n]])
-    except ValueError:
-        # Fallback if TF-IDF fails (e.g., all stop words)
-        return " ".join(sentences[:top_n])
-
-def is_discourse_sentence(s):
-    discourse_phrases = [
-        "of course",
-        "and that's",
-        "and then",
-        "you can",
-        "we have to",
-        "that's how",
-        "i think",
-        "you need",
-        "we need to write",
-        "we have to write",
-        "simple notepad"
-    ]
-
-    s = s.lower()
-    return any(p in s for p in discourse_phrases)
-
-def has_concept_density(sentence, nlp):
-    doc = nlp(sentence)
-
-    noun_count = sum(1 for t in doc if t.pos_ in ["NOUN", "PROPN"])
-    verb_count = sum(1 for t in doc if t.pos_ == "VERB")
-
-    return noun_count >= 2 and verb_count >= 1
-
-def normalize_concept_sentence(sentence):
-    s = sentence.lower()
-
-    mappings = {
-        "write that code, your machine need to understand it":
-            "Computer systems require code to be converted into machine-understandable instructions.",
-
-        "work with that data, we need software":
-            "Software is required to store, retrieve, and process data.",
-
-        "we have to write some code":
-            "Programming is used to instruct computers to perform tasks."
-    }
-
-    for k, v in mappings.items():
-        if k in s:
-            return v
-
-    return sentence.strip().capitalize()
-
-def is_question(sentence):
-    return sentence.strip().endswith("?")
-
-def starts_like_instruction(sentence):
-    bad_starts = [
-        "so let's",
-        "let's",
-        "but before",
-        "and if you",
-        "so what happens",
-    ]
-
-    s = sentence.lower().strip()
-    return any(s.startswith(b) for b in bad_starts)
-
-def is_filler_sentence(sentence):
-    fillers = ["so ", "and ", "but ", "so, ", "and, ", "but, ", "that's it", "thats it"]
-    s = sentence.lower().strip()
-    return any(s.startswith(f) for f in fillers) or s in ["that's it.", "thats it."]
-
-def meets_minimum_length(sentence, min_words=7):
-    return len(sentence.split()) >= min_words
-
-
-
-def generate_structured_notes(text, nlp, max_points=6):
-    doc = nlp(text)
+def generate_structured_notes(text, max_points=6):
+    sentences = re.split(r'(?<=[.!?]) +', text)
     notes = []
 
-    for sent in doc.sents:
-        s = sent.text.strip()
+    for s in sentences:
+        s = s.strip()
 
-        if not meets_minimum_length(s):
+        if len(s.split()) < 7:
+            continue
+        if s.endswith("?"):
             continue
 
-        if is_question(s):
-            continue
-
-        if is_discourse_sentence(s):
-            continue
-
-        if starts_like_instruction(s):
-            continue
-
-        if is_filler_sentence(s):
-            continue
-
-        if not has_concept_density(s, nlp):
-            continue
-
-        clean = normalize_concept_sentence(s)
-        notes.append("• " + clean)
+        notes.append("• " + s.capitalize())
 
         if len(notes) >= max_points:
             break
 
     return notes
+    
+def generate_summary(notes, top_n=3):
+    if not notes:
+        return "Summary could not be generated."
 
+    sentences = [n.replace("• ", "") for n in notes]
+
+    if len(sentences) <= top_n:
+        return " ".join(sentences)
+
+    vectorizer = TfidfVectorizer(stop_words="english")
+    X = vectorizer.fit_transform(sentences)
+    similarity = (X * X.T).toarray()
+
+    graph = nx.from_numpy_array(similarity)
+    scores = nx.pagerank(graph)
+
+    ranked = sorted(
+        ((scores[i], s) for i, s in enumerate(sentences)),
+        reverse=True
+    )
+
+    return " ".join([s for _, s in ranked[:top_n]])
+    
 def generate_quiz(text, num_questions=3):
     model = genai.GenerativeModel("gemini-2.5-flash")
 
@@ -611,10 +510,11 @@ if uploaded_file:
                 # NLP processing
                 transcript = clean_text(transcript)
                 st.session_state["transcript"] = transcript
-                st.session_state["notes"] = generate_structured_notes(transcript, nlp)
+                st.session_state["notes"] = generate_structured_notes(transcript)
                 st.session_state["summary"] = generate_summary(st.session_state["notes"])
                 st.session_state["quiz"] = generate_quiz(transcript)
                 st.session_state["flashcards"] = generate_flashcards(transcript)
+                st.session_state["score"] = 0
 
                 st.success("✅ Success! Your lecture has been converted.")
 
@@ -640,11 +540,14 @@ if 'transcript' in st.session_state:
 
     with tab3:
         st.subheader("Interactive Quiz")
-
+        quiz_data = st.session_state.get("quiz", [])
+        
+        if quiz_data and "error" in quiz_data[0]:
+            st.warning(quiz_data[0]["error"])
+            st.stop()
         if "score" not in st.session_state:
             st.session_state.score = 0
-
-        quiz_data = st.session_state.get('quiz', [])
+            
         if quiz_data:
             for i, q in enumerate(quiz_data):
                 st.markdown(f"**Q{i+1}. {q['question']}**")
@@ -805,6 +708,7 @@ if 'transcript' in st.session_state:
         mime="text/plain"
     )
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
