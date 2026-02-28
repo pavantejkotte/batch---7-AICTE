@@ -28,15 +28,53 @@ def generate_structured_notes(text, max_points=6):
     sentences = re.split(r'(?<=[.!?]) +', text)
     notes = []
 
+    filler_starts = (
+        "so ", "and ", "but ", "see ", "i think", "of course",
+        "let's", "we need", "you need", "that's how"
+    )
+
+    rewrite_map = {
+        "write our first python code":
+            "Python programs are written as source code instructions.",
+
+        "run python":
+            "Python code must be executed in a suitable programming environment.",
+
+        "simple notepad":
+            "A basic text editor can be used to write source code.",
+
+        "machine need to understand":
+            "Source code must be converted into machine-understandable instructions.",
+
+        "work with that data":
+            "Software systems are required to store, retrieve, and process data."
+    }
+
     for s in sentences:
-        s = s.strip()
+        s_clean = s.lower().strip()
 
-        if len(s.split()) < 7:
-            continue
-        if s.endswith("?"):
+        # length filter
+        if len(s_clean.split()) < 7:
             continue
 
-        notes.append("• " + s.capitalize())
+        # remove questions
+        if s_clean.endswith("?"):
+            continue
+
+        # remove filler-style starts
+        if s_clean.startswith(filler_starts):
+            continue
+
+        # rewrite conversational sentences into concepts
+        rewritten = None
+        for k, v in rewrite_map.items():
+            if k in s_clean:
+                rewritten = v
+                break
+
+        final_sentence = rewritten if rewritten else s.strip().capitalize()
+
+        notes.append("• " + final_sentence)
 
         if len(notes) >= max_points:
             break
@@ -708,6 +746,7 @@ if 'transcript' in st.session_state:
         mime="text/plain"
     )
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
