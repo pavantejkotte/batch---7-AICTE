@@ -1,16 +1,18 @@
 import streamlit as st
-import os
-import tempfile
 import re
-import random
-from collections import Counter
 import google.generativeai as genai
 from audio_processor import AudioProcessor
 import spacy
 import numpy as np
 import networkx as nx
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+
+# Page configuration
+st.set_page_config(
+    page_title="LectureToStudyBuddy",
+    page_icon="🎓",
+    layout="wide"
+)
 
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
@@ -160,53 +162,64 @@ def generate_structured_notes(text, nlp, max_points=6):
     return notes
 
 def generate_quiz(text, num_questions=3):
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
     prompt = f"""
-    You are an expert educator. Extract the {num_questions} most critical concepts from the following lecture transcript and create a multiple-choice quiz testing understanding of those specific concepts.
-    
-    Instructions:
-    1. Identify the most important topics discussed in the audio transcript natively.
-    2. Formulate exactly {num_questions} clear, unambiguous questions targeting these topics.
-    3. Provide exactly 4 options per question where only 1 is correct.
-    4. Ensure the 3 incorrect options (distractors) are highly plausible and strictly related to the subject matter, not easily guessable.
-    
-    Format the output EXACTLY as a valid JSON array of objects. Do not include any markdown formatting like ```json or ```.
-    Each object must have the following structure:
-    {{
-        "question": "The question text testing the core concept",
-        "options": ["Option A", "Option B", "Option C", "Option D"],
-        "answer": "The EXACT string from the options list that is the correct answer"
-    }}
-    
-    Transcript:
-    {text}
-    """
-    
-    import time
-    import re
-    import json
-    
+You are an expert educator.
+
+Create EXACTLY {num_questions} multiple-choice questions from the lecture transcript below.
+
+RULES (STRICT):
+- Questions must be derived ONLY from the transcript.
+- Each question must test a CORE concept.
+- Each question must have EXACTLY 4 options.
+- ONLY ONE option must be correct.
+- Distractors must be plausible and topic-related.
+- Output MUST be valid JSON only (no explanations, no markdown).
+
+JSON FORMAT:
+[
+  {{
+    "question": "Question text",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "answer": "Option A"
+  }}
+]
+
+LECTURE TRANSCRIPT:
+{text}
+"""
+
+    import json, re, time
+
     for attempt in range(3):
         try:
             response = model.generate_content(prompt)
-            json_str = response.text.strip()
-            
-            # Use Regex to explicitly rip out the JSON array if Gemini adds conversational text
-            match = re.search(r'\[.*\]', json_str, re.DOTALL)
-            if match:
-                json_str = match.group(0)
-                
-            quiz = json.loads(json_str)
+            raw = response.text.strip()
+
+            # Extract JSON array safely
+            match = re.search(r"\[.*\]", raw, re.DOTALL)
+            if not match:
+                raise ValueError("No JSON array found in model response")
+
+            quiz = json.loads(match.group())
+
+            # Basic structure validation
+            if not isinstance(quiz, list) or len(quiz) == 0:
+                raise ValueError("Empty or invalid quiz JSON")
+
             return quiz
+
         except Exception as e:
             error_str = str(e)
             if "429" in error_str or "Quota exceeded" in error_str:
-                return [{"error": "Rate limit exceeded. Please wait a minute before trying again."}]
-            print(f"Error generating quiz (Attempt {attempt+1}): {e}")
-            time.sleep(5)
-            
-    return []
+                return [{
+                    "error": "Rate limit exceeded. Please wait a minute before trying again."
+                }]
+            print(f"Quiz generation failed (attempt {attempt+1}): {e}")
+            time.sleep(4)
 
+    return []
 def generate_flashcards(text, max_cards=6):
     model = genai.GenerativeModel('gemini-2.5-flash')
     prompt = f"""
@@ -253,13 +266,6 @@ def generate_flashcards(text, max_cards=6):
             time.sleep(5)
             
     return []
-
-# Page configuration
-st.set_page_config(
-    page_title="LectureToStudyBuddy",
-    page_icon="🎓",
-    layout="wide"
-)
 
 # Premium CSS Injection
 st.markdown("""
@@ -793,6 +799,7 @@ if 'transcript' in st.session_state:
         mime="text/plain"
     )
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
