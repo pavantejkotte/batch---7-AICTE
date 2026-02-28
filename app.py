@@ -586,27 +586,32 @@ st.markdown(
 )
 
 st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-uploaded_file = st.file_uploader("Upload audio recording (MP3, WAV, M4A)", type=["mp3", "wav", "m4a"])
+uploaded_file = st.file_uploader(
+    "Upload audio recording (MP3, WAV, M4A)",
+    type=["mp3", "wav", "m4a"]
+)
+
 if uploaded_file:
     st.audio(uploaded_file)
+
     if st.button("🚀 Start Transcription"):
         with st.spinner("🔍 AI is processing your lecture recording..."):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                tmp_path = tmp_file.name
             try:
                 processor = AudioProcessor()
-                transcript = processor.process_audio(tmp_path)
-                
-                # Process transcript
+
+                # ✅ PASS FILE OBJECT (NOT PATH)
+                transcript = processor.process_audio(uploaded_file)
+
+                # NLP processing
                 transcript = clean_text(transcript)
-                st.session_state['transcript'] = transcript
-                st.session_state['notes'] = generate_structured_notes(transcript, nlp)
-                st.session_state['summary'] = generate_summary(st.session_state['notes'])
-                st.session_state['quiz'] = generate_quiz(transcript)
-                st.session_state['flashcards'] = generate_flashcards(transcript)
-                
+                st.session_state["transcript"] = transcript
+                st.session_state["notes"] = generate_structured_notes(transcript, nlp)
+                st.session_state["summary"] = generate_summary(st.session_state["notes"])
+                st.session_state["quiz"] = generate_quiz(transcript)
+                st.session_state["flashcards"] = generate_flashcards(transcript)
+
                 st.success("✅ Success! Your lecture has been converted.")
+
             except Exception as e:
                 st.error(f"Error during transcription: {e}")
             finally:
@@ -796,5 +801,6 @@ if 'transcript' in st.session_state:
         mime="text/plain"
     )
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
