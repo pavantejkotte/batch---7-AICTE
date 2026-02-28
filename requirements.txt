@@ -1,6 +1,5 @@
 streamlit
 openai-whisper
-ffmpeg-python
 spacy
 nltk
 scikit-learn
