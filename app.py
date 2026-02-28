@@ -17,11 +17,13 @@ st.set_page_config(
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 
+from spacy.cli import download
+
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
-    st.error("spaCy model not found. Please install en_core_web_sm.")
-    st.stop()
+    download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
 # Helper Functions
 def clean_text(text):
@@ -799,6 +801,7 @@ if 'transcript' in st.session_state:
         mime="text/plain"
     )
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
